@@ -1,0 +1,267 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE xsl:Stylesheet [<!ENTITY nbsp "&#x00A0;">]>
+<xsl:stylesheet
+version="1.0"
+xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+xmlns:msxml="urn:schemas-microsoft-com:xslt"
+xmlns:umbraco.library="urn:umbraco.library"
+>
+
+<!-- Retrieve XML data directly from Bigfive site. -->
+<!--
+<xsl:variable name="y" select="document('http://bigfive.com/tour_list.xml')/tour_list" />
+-->
+
+<!-- Retrieve XML data from local cache. -->
+<xsl:variable name="y" select="document('../App_Data/FeedCache/tour_list.xml')/tour_list" />
+<xsl:output method="html" omit-xml-declaration="yes" indent="yes"/>
+  
+<!-- 
+Template for adding line breaks to the tour itineraries. In the XML file there are 
+carriage returns at the end of each tour day instead of <br> tags. -->
+
+<xsl:template name="LFsToBRs">
+  <xsl:param name="input" />
+  <xsl:choose>
+    <xsl:when test="contains($input, '&#xD;')">
+      <xsl:value-of select="substring-before($input, '&#xD;')" />&lt;br /&gt;
+      <xsl:call-template name="LFsToBRs">
+        <xsl:with-param name="input" select="substring-after($input, '&#xD;')" />
+      </xsl:call-template>
+    </xsl:when>
+    <xsl:otherwise>
+      <xsl:value-of select="$input" />
+    </xsl:otherwise>
+  </xsl:choose>
+   
+</xsl:template>
+
+<xsl:template match="/">
+  
+  <style type="text/css">
+    
+    .descriptive-heading {
+      font-size:115%;
+      font-weight:bold;
+      margin: 2px 0px;
+    }
+      
+    img {
+      float:right;
+    }
+    
+    #separator {
+      height:1px;
+      background:#CCCCCC;
+      border-bottom: solid #CCCCCC;
+      margin: 2% 0%;
+    }
+    
+    <!-- 
+    This class comes from an image class in the left container on the site, while the 
+    Bigfive feed displays on the right. I had to change it just for this page so that 
+    the "Join the Mailing List!" section is not changed by the image tag above.-->
+    
+    .title {
+      float:none;
+    }
+    
+    #tour-container {
+      width:540px;
+      height:1200px;
+      overflow-y:scroll;
+      overflow-x:hidden;
+      padding:2px;
+    }
+    
+    #tour-highlights ul li {
+      line-height:normal;
+    }
+      
+    #tour-images {
+      width:540px;
+      height:200px;
+    }
+    
+    .tour-image {
+      float:none;
+      max-width:100%;
+      max-height:100%;
+    }
+    
+    #tour-name {
+      font-size:200%;
+      margin: 3% 0%;
+    }
+       
+   </style>
+
+  
+<div id="tour-container"> 
+  <!-- 
+  This first "for-each" element grabs the most recent 15 tours and sorts them from 
+  most to least recent.  
+  -->
+  <xsl:for-each select="$y/tour[position()>last()-16]">
+    <xsl:sort select="position()" order="descending" data-type="number"/>
+   
+    <!-- 
+    Each div contains info directly from an xml tag. The "value-of" element
+    retrieves the xml data. I created each tag as its own div so we can easily 
+    change their css individually, as desired. And also if there are ones you don't
+    want to include, you can delete the whole div without worrying about messing
+    up something else. The "disable-output-escaping" property makes the html code 
+    that is inside of the xml work.
+    -->
+    
+    <div id="tour-name">
+       <xsl:value-of select="./tour_name" disable-output-escaping="yes"  />
+     </div>
+    
+    <!--
+    In the XML file, there tend to be two sizes of images associated with each tour -- 
+    a small one and a large one. They are never in a specific order (like small one first, 
+    big one second). The code below displays the first image, and then the CSS adds it to 
+    a container of a certain size, so that it either gets resized to fit the container or is displayed at its actual size. To some degree this normalizes image size.
+    -->
+    <div id="tour-images">
+      
+       <xsl:for-each select="./tour_images/image[1]">
+         <img class="tour-image">
+           <xsl:attribute name="src">
+           <xsl:value-of select="." disable-output-escaping="yes" />
+           </xsl:attribute>
+          </img>
+        </xsl:for-each>
+     </div>
+
+    <!--If you uncomment this div, it will show you all the images for each tour. This
+    would allow you to try different approaches for displaying them. -->
+    
+    <!--<div id="all-tour-images">
+        <xsl:for-each select="./tour_images/image">
+           <img class="all-tour-images">
+             <xsl:attribute name="src">
+             <xsl:value-of select="." disable-output-escaping="yes" />
+             </xsl:attribute>
+           </img>
+        </xsl:for-each>
+    </div> -->
+    
+    
+    <br/><br/>
+    
+    <div id="tour-short-description">
+       <xsl:value-of select="./tour_short_description" disable-output-escaping="yes" />
+    </div>
+      
+    <br/>
+       
+    <div id="tour-highlights">
+       <xsl:value-of select="./tour_highlights" disable-output-escaping="yes"  />
+    </div>
+    
+    <br/>
+    
+    <div id="tour-itinerary">
+      
+      <div class="descriptive-heading">Tour Itinerary</div>
+      <div class="tour_length">Tour length: <xsl:value-of select="./tour_length" /> days
+      </div>
+        
+       <br/>
+       
+       <!-- 
+       From here till the end of the div is code that calls on a template
+       above to output the tour itineraries properly. Withouth the template, the
+       itineraries would appear with no line breaks. If you delete from here to the 
+       end of the div, the itineraries will disappear.
+       -->
+       <xsl:variable name="formatted">
+         <xsl:call-template name="LFsToBRs">
+           <xsl:with-param name="input" select="tour_itinerary" />
+         </xsl:call-template>
+       </xsl:variable>
+        
+       <xsl:value-of select="$formatted" disable-output-escaping="yes" />
+    </div>
+    
+    <br/>
+    
+    <div id="tour_series">
+      <div class="descriptive-heading">Tour Series</div> 
+        <xsl:for-each select="./tour_series/series">
+          
+            <!-- 
+            This code puts commas between each series. Same idea in the next two instances 
+            of it (with interests and countries). 
+            -->
+            <xsl:value-of 
+            select="concat(., substring(', ', 2 - (position() != last())))" />
+          
+        </xsl:for-each>
+      
+    </div>
+    
+    <br/>
+              
+    <div id="tour_interests">
+       <div class="descriptive-heading">Tour Interests</div> 
+        <xsl:for-each select="./tour_interests/interest">
+            <xsl:value-of 
+            select="concat(., substring(', ', 2 - (position() != last())))" />
+        </xsl:for-each>
+    </div>
+        
+    <br/>
+        
+    <div id="tour_countries">
+       <div class="descriptive-heading">Tour Countries</div>
+        <xsl:for-each select="./tour_countries/country">
+            <xsl:value-of 
+            select="concat(., substring(', ', 2 - (position() != last())))" />
+        </xsl:for-each>
+    </div>
+     
+    <br/>
+    
+    <div id="tour_price">
+      <div class="descriptive-heading">Tour Price</div>
+      $<xsl:value-of select="./tour_price" />
+    </div>
+    
+    <br/>
+    
+    <div id="tour_rates">
+      <div class="descriptive-heading">Tour Rates</div>
+      <xsl:value-of select="./tour_rates" disable-output-escaping="yes" />
+    </div>
+    
+    <br/>
+    
+    <!-- This would display the tour link on the site if you choose to uncomment it. -->
+    <!-- <div class="tour_link">
+      <div class="descriptive-heading">Tour Link</div>
+        <xsl:variable name="link">
+          <xsl:value-of select="./link" />
+        </xsl:variable>
+        
+      <a href="{link}"><xsl:value-of select="./link" /></a>  
+    </div>
+    -->
+        
+    <p align="center"><big><strong><a href="http://www.davisvilletravel.com/travel-inquiry-form.aspx" target="_blank">
+      Call us for dates, pricing, and more information</a> (800) 255-4567</strong></big></p>
+     
+    <br/>
+    
+    <hr noshade="noshade" size="1" color="#336699"/>
+    
+    <br/>
+    
+  </xsl:for-each>
+</div>
+  
+</xsl:template>
+  
+</xsl:stylesheet>
